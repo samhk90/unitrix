@@ -1,0 +1,152 @@
+<div class="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 py-8">
+    <div class="container max-w-full mx-auto px-4 sm:px-6 lg:px-8">
+        <!-- Header Section -->
+        <div class="bg-white backdrop-blur-xl bg-opacity-90 rounded-2xl shadow-lg border border-gray-100/50 transition-all duration-300 hover:shadow-xl mb-8">
+            <div class="p-6 sm:p-8">
+                <div class="flex flex-col gap-6">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                        <div class="space-y-1">
+                            <h2 class="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Attendance Reports</h2>
+                            <p class="text-gray-500">Generate and download attendance reports</p>
+                        </div>
+                    </div>
+
+                    <!-- Report Configuration -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <!-- Class Selection -->
+                        <div class="space-y-2">
+                            <label class="block text-sm font-medium text-gray-700">Select Class</label>
+                            <div class="relative">
+                                <select [(ngModel)]="selectedClass" 
+                                        class="w-full px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm transition-all duration-200">
+                                    <option value="">Select a Class</option>
+                                    <option *ngFor="let class of classes" [value]="class.id">{{class.name}}</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Report Type -->
+                        <div class="space-y-2">
+                            <label class="block text-sm font-medium text-gray-700">Report Type</label>
+                            <div class="relative">
+                                <select [(ngModel)]="reportType" (ngModelChange)="onReportTypeChange()"
+                                        class="w-full px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm transition-all duration-200">
+                                    <option value="daily">Daily Report</option>
+                                    <option value="weekly">Weekly Report</option>
+                                    <option value="monthly">Monthly Report</option>
+                                    <option value="subject-wise">Subject-wise Report</option>
+                                    <option value="custom">Custom Date Range</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Subject Selection (for subject-wise reports) -->
+                        <div *ngIf="reportType === 'subject-wise'" class="space-y-2">
+                            <label class="block text-sm font-medium text-gray-700">Select Subject</label>
+                            <div class="relative">
+                                <select [(ngModel)]="selectedSubject"
+                                        class="w-full px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm transition-all duration-200">
+                                    <option value="">Select a Subject</option>
+                                    <option *ngFor="let subject of subjects" [value]="subject.id">{{subject.name}}</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Date Selection based on report type -->
+                        <div [ngSwitch]="reportType" class="space-y-2" *ngIf="reportType !== 'subject-wise'">
+                            <!-- Daily Report -->
+                            <div *ngSwitchCase="'daily'">
+                                <label class="block text-sm font-medium text-gray-700">Select Date</label>
+                                <input type="date" [(ngModel)]="selectedDate" 
+                                       class="w-full px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm transition-all duration-200">
+                            </div>
+
+                            <!-- Weekly Report -->
+                            <div *ngSwitchCase="'weekly'" class="space-y-2">
+                                <label class="block text-sm font-medium text-gray-700">Select Week</label>
+                                <input type="week" [(ngModel)]="selectedWeek"
+                                       class="w-full px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm transition-all duration-200">
+                            </div>
+
+                            <!-- Monthly Report -->
+                            <div *ngSwitchCase="'monthly'" class="space-y-2">
+                                <label class="block text-sm font-medium text-gray-700">Select Month</label>
+                                <input type="month" [(ngModel)]="selectedMonth"
+                                       class="w-full px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm transition-all duration-200">
+                            </div>
+
+                            <!-- Custom Date Range -->
+                            <div *ngSwitchCase="'custom'" class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">Start Date</label>
+                                    <input type="date" [(ngModel)]="customStartDate"
+                                           class="w-full px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm transition-all duration-200">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">End Date</label>
+                                    <input type="date" [(ngModel)]="customEndDate"
+                                           class="w-full px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm transition-all duration-200">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Generate Report Button -->
+                    <div class="flex justify-end gap-4">
+                        <button (click)="generateReport('pdf')" 
+                                class="inline-flex items-center px-6 py-2.5 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200">
+                            <svg class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                            </svg>
+                            Download PDF
+                        </button>
+                        <button (click)="generateReport('csv')"
+                                class="inline-flex items-center px-6 py-2.5 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200">
+                            <svg class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            Download CSV
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Report Preview Section -->
+        <div *ngIf="reportData" class="space-y-8">
+            <!-- Report Table -->
+            <div class="bg-white backdrop-blur-xl bg-opacity-90 rounded-2xl shadow-lg border border-gray-100/50 overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead>
+                            <tr class="bg-gradient-to-r from-gray-50 to-gray-100">
+                                <th *ngFor="let header of reportHeaders" 
+                                    class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                    {{header}}
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            <tr *ngFor="let row of reportData" 
+                                class="hover:bg-gray-50 transition-colors duration-200">
+                                <td *ngFor="let cell of row" 
+                                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    {{cell}}
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Attendance Graph -->
+            <div class="bg-white backdrop-blur-xl bg-opacity-90 rounded-2xl shadow-lg border border-gray-100/50 p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Attendance Overview</h3>
+                <div class="h-[400px]">
+                    <!-- Graph will be rendered here using chart library -->
+                    <canvas id="attendanceChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

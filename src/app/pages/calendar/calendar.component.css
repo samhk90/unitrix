@@ -1,0 +1,78 @@
+/* Calendar customization */
+::ng-deep .fc {
+    --fc-border-color: #E5E7EB;
+    --fc-button-text-color: #4B5563;
+    --fc-button-bg-color: #FFFFFF;
+    --fc-button-border-color: #D1D5DB;
+    --fc-button-hover-bg-color: #F3F4F6;
+    --fc-button-hover-border-color: #9CA3AF;
+    --fc-button-active-bg-color: #EFF6FF;
+    --fc-button-active-border-color: #3B82F6;
+    --fc-event-bg-color: #3B82F6;
+    --fc-event-border-color: #2563EB;
+    --fc-today-bg-color: #EFF6FF;
+}
+
+::ng-deep .fc-button {
+    @apply shadow-sm rounded-lg font-medium !important;
+}
+
+::ng-deep .fc-button-primary:not(:disabled):active,
+::ng-deep .fc-button-primary:not(:disabled).fc-button-active {
+    @apply text-blue-600 !important;
+}
+
+::ng-deep .fc-daygrid-day:hover {
+    @apply bg-gray-50 cursor-pointer transition-colors duration-200 !important;
+}
+
+/* Modal animations */
+.animate-fadeIn {
+    animation: fadeIn 0.2s ease-in-out;
+}
+
+.animate-modalSlideIn {
+    animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes modalSlideIn {
+    from {
+        transform: translateY(-10%);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* Leave status indicators */
+.status-indicator {
+    @apply w-3 h-3 rounded-full;
+}
+
+.status-approved {
+    @apply bg-green-500;
+}
+
+.status-pending {
+    @apply bg-yellow-500;
+}
+
+.status-rejected {
+    @apply bg-red-500;
+}
+
+/* Progress bars animation */
+.progress-bar {
+    transition: width 0.6s ease;
+}

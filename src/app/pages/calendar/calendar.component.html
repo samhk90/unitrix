@@ -1,0 +1,166 @@
+<div class="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 py-8">
+    <div class="container max-w-full mx-auto px-4 sm:px-6 lg:px-8">
+        <!-- Leave Stats Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <!-- Paid Leave Stats -->
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 transition-all duration-200 hover:shadow-lg">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-500">Paid Leave</p>
+                        <div class="mt-2 flex items-baseline">
+                            <p class="text-2xl font-semibold text-gray-900">{{leaveStats.paid.used}}/{{leaveStats.paid.total}}</p>
+                            <p class="ml-2 text-sm text-gray-500">days</p>
+                        </div>
+                    </div>
+                    <div class="h-12 w-12 rounded-lg bg-blue-50 flex items-center justify-center">
+                        <svg class="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                    </div>
+                </div>
+                <div class="mt-4 h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div class="h-full bg-blue-600 rounded-full" [style.width.%]="(leaveStats.paid.used / leaveStats.paid.total) * 100"></div>
+                </div>
+            </div>
+
+            <!-- Special Leave Stats -->
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 transition-all duration-200 hover:shadow-lg">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-500">Special Leave</p>
+                        <div class="mt-2 flex items-baseline">
+                            <p class="text-2xl font-semibold text-gray-900">{{leaveStats.special.used}}/{{leaveStats.special.total}}</p>
+                            <p class="ml-2 text-sm text-gray-500">days</p>
+                        </div>
+                    </div>
+                    <div class="h-12 w-12 rounded-lg bg-purple-50 flex items-center justify-center">
+                        <svg class="h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </div>
+                </div>
+                <div class="mt-4 h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div class="h-full bg-purple-600 rounded-full" [style.width.%]="(leaveStats.special.used / leaveStats.special.total) * 100"></div>
+                </div>
+            </div>
+
+            <!-- Optional Leave Stats -->
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 transition-all duration-200 hover:shadow-lg">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-500">Optional Leave</p>
+                        <div class="mt-2 flex items-baseline">
+                            <p class="text-2xl font-semibold text-gray-900">{{leaveStats.optional.used}}/{{leaveStats.optional.total}}</p>
+                            <p class="ml-2 text-sm text-gray-500">days</p>
+                        </div>
+                    </div>
+                    <div class="h-12 w-12 rounded-lg bg-green-50 flex items-center justify-center">
+                        <svg class="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </div>
+                </div>
+                <div class="mt-4 h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div class="h-full bg-green-600 rounded-full" [style.width.%]="(leaveStats.optional.used / leaveStats.optional.total) * 100"></div>
+                </div>
+            </div>
+
+            <!-- Total Leave Stats -->
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 transition-all duration-200 hover:shadow-lg">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-500">Total Leave Balance</p>
+                        <div class="mt-2 flex items-baseline">
+                            <p class="text-2xl font-semibold text-gray-900">{{getTotalLeaveBalance()}}</p>
+                            <p class="ml-2 text-sm text-gray-500">days remaining</p>
+                        </div>
+                    </div>
+                    <div class="h-12 w-12 rounded-lg bg-indigo-50 flex items-center justify-center">
+                        <svg class="h-6 w-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                        </svg>
+                    </div>
+                </div>
+                <div class="mt-4 h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div class="h-full bg-indigo-600 rounded-full" [style.width.%]="getTotalLeavePercentage()"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Calendar Section -->
+        <div class="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+            <full-calendar [options]="calendarOptions"></full-calendar>
+        </div>
+    </div>
+</div>
+
+<!-- Leave Application Modal -->
+<div *ngIf="showModal" 
+     class="fixed inset-0 bg-gray-900/50 backdrop-blur-sm overflow-y-auto h-full w-full flex items-center justify-center animate-fadeIn z-150"
+     (click)="closeModal()">
+    <div class="relative bg-white rounded-2xl shadow-2xl mx-4 sm:mx-auto w-full max-w-md transform transition-all animate-modalSlideIn"
+         (click)="$event.stopPropagation()">
+        <!-- Modal Header -->
+        <div class="px-6 py-4 border-b border-gray-200">
+            <div class="flex items-center justify-between">
+                <h3 class="text-xl font-semibold text-gray-900">Apply for Leave</h3>
+                <button (click)="closeModal()" class="text-gray-400 hover:text-gray-500 transition-colors duration-200">
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Modal Body -->
+        <div class="px-6 py-4">
+            <form (ngSubmit)="submitLeaveApplication()" #leaveForm="ngForm" class="space-y-4">
+                <!-- Leave Type -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Leave Type</label>
+                    <select [(ngModel)]="leaveApplication.type" name="type" required
+                            class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                        <option value="paid">Paid Leave</option>
+                        <option value="special">Special Leave</option>
+                        <option value="optional">Optional Leave</option>
+                    </select>
+                </div>
+
+                <!-- Date Range -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">From Date</label>
+                        <input type="date" [(ngModel)]="leaveApplication.startDate" name="startDate" required
+                               class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">To Date</label>
+                        <input type="date" [(ngModel)]="leaveApplication.endDate" name="endDate" required
+                               class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                </div>
+
+                <!-- Half Day Option -->
+                <div class="flex items-center">
+                    <input type="checkbox" [(ngModel)]="leaveApplication.isHalfDay" name="isHalfDay"
+                           class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                    <label class="ml-2 block text-sm text-gray-700">Half Day Leave</label>
+                </div>
+
+                <!-- Reason -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Reason for Leave</label>
+                    <textarea [(ngModel)]="leaveApplication.reason" name="reason" required rows="3"
+                              class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"></textarea>
+                </div>
+
+                <!-- Submit Button -->
+                <button type="submit" 
+                        [disabled]="!leaveForm.valid"
+                        class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                    Submit Application
+                </button>
+            </form>
+        </div>
+    </div>
+</div>

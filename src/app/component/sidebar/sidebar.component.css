@@ -1,0 +1,171 @@
+/* Base transitions */
+.sidebar-container {
+  touch-action: pan-y pinch-zoom;
+  position: relative;
+  height: 100%;
+  transition: all 0.3s ease-in-out;
+}
+
+/* Background pattern */
+.bg-grid-pattern {
+  background-image: 
+    linear-gradient(to right, rgba(255,255,255,0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255,255,255,0.05) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+/* Modern animations */
+@keyframes slideIn {
+  from {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 0.8;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+  100% {
+    opacity: 0.8;
+    transform: scale(1);
+  }
+}
+
+/* Animation classes */
+.animate-slideIn {
+  animation: slideIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Modern glass effect */
+.backdrop-blur-sm {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.backdrop-blur-md {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* Touch surface for swipe with improved performance */
+@media (max-width: 768px) {
+  .sidebar-container {
+    touch-action: pan-x pan-y;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .sidebar-container aside {
+    will-change: transform;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+  }
+}
+
+/* Smooth transitions */
+.transition-transform {
+  transition-property: transform;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 300ms;
+}
+
+/* Active item styling */
+.active-item-glow {
+  box-shadow: 0 0 15px rgba(59, 130, 246, 0.2);
+}
+
+.active-link {
+  background-color: white;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+/* Custom scrollbar */
+nav::-webkit-scrollbar {
+  width: 4px;
+}
+
+nav::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+nav::-webkit-scrollbar-thumb {
+  background-color: #e5e7eb;
+  border-radius: 9999px;
+}
+
+nav::-webkit-scrollbar-thumb:hover {
+  background-color: #d1d5db;
+}
+
+/* Hover effects */
+.hover-scale {
+  transition: transform 0.2s ease;
+}
+
+.hover-scale:hover {
+  transform: scale(1.02);
+}
+
+/* Glass effect for sidebar */
+aside > div {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* Mobile styles */
+@media (max-width: 768px) {
+  .sidebar-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    z-index: 50;
+  }
+  
+  aside {
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+  }
+}
+
+:host {
+  display: block;
+  height: 100%;
+}
+
+.sidebar-container {
+  width: 100%;
+  height: 100%;
+}
+
+/* Animation for expand/collapse */
+.expanded {
+  width: 16rem;
+}

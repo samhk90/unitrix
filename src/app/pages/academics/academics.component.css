@@ -1,0 +1,26 @@
+:host {
+  display: block;
+  height: 100%;
+}
+
+aside {
+  transition: width 0.3s ease-in-out;
+}
+
+.sidebar-transition {
+  transition: all 0.3s ease-in-out;
+}
+
+@media (max-width: 768px) {
+  aside {
+    position: fixed;
+    z-index: 50;
+  }
+  
+  .sidebar-overlay {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 40;
+  }
+}
