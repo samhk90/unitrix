@@ -1,40 +1,55 @@
 <div class="login-container">
   <div class="login-box">
-    <div class="login-header">
-      <h1>UNITRIX</h1>
-      <p>Education Management System</p>
-    </div>
-    
+    <h2>Login</h2>
     <form [formGroup]="loginForm" (ngSubmit)="onSubmit()">
       <div class="form-group">
-        <input type="email" formControlName="email" placeholder="Email" 
-               [class.error]="loginForm.get('email')?.invalid && loginForm.get('email')?.touched">
+        <label for="email">Email</label>
+        <input
+          type="email"
+          id="email"
+          formControlName="email"
+          placeholder="Enter your email"
+          [class.is-invalid]="loginForm.get('email')?.invalid && loginForm.get('email')?.touched"
+        />
         <div class="error-message" *ngIf="loginForm.get('email')?.invalid && loginForm.get('email')?.touched">
-          Please enter a valid email
+          <span *ngIf="loginForm.get('email')?.errors?.['required']">Email is required</span>
+          <span *ngIf="loginForm.get('email')?.errors?.['email']">Please enter a valid email</span>
         </div>
       </div>
 
       <div class="form-group">
-        <input [type]="showPassword ? 'text' : 'password'" formControlName="password" placeholder="Password">
-        <button type="button" class="toggle-password" (click)="togglePassword()">
-          <i [class]="showPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
-        </button>
+        <label for="password">Password</label>
+        <div class="password-input">
+          <input
+            [type]="showPassword ? 'text' : 'password'"
+            id="password"
+            formControlName="password"
+            placeholder="Enter your password"
+            [class.is-invalid]="loginForm.get('password')?.invalid && loginForm.get('password')?.touched"
+          />
+          <button type="button" class="toggle-password" (click)="togglePassword()">
+            <i class="fas" [class.fa-eye]="!showPassword" [class.fa-eye-slash]="showPassword"></i>
+          </button>
+        </div>
         <div class="error-message" *ngIf="loginForm.get('password')?.invalid && loginForm.get('password')?.touched">
-          Password is required
+          <span *ngIf="loginForm.get('password')?.errors?.['required']">Password is required</span>
+          <span *ngIf="loginForm.get('password')?.errors?.['minlength']">Password must be at least 6 characters</span>
         </div>
       </div>
 
-      <div class="form-options">
+      <div class="form-group remember-me">
         <label>
-          <input type="checkbox" formControlName="rememberMe">
+          <input type="checkbox" formControlName="rememberMe" />
           Remember me
         </label>
-        <a href="#" (click)="forgotPassword()">Forgot Password?</a>
+        <a href="javascript:void(0)" (click)="forgotPassword()" class="forgot-password">Forgot Password?</a>
       </div>
 
-      <button type="submit" [disabled]="loginForm.invalid || isLoading" class="login-button">
+      <div class="error-message" *ngIf="errorMessage">{{ errorMessage }}</div>
+
+      <button type="submit" [disabled]="isLoading || !loginForm.valid" class="login-button">
         <span *ngIf="!isLoading">Login</span>
-        <span *ngIf="isLoading" class="spinner"></span>
+        <span *ngIf="isLoading">Loading...</span>
       </button>
     </form>
   </div>

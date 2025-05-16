@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { NavigationEnd } from '@angular/router';
 import { filter } from 'rxjs/operators';
+import { AuthService } from '../../services/auth.service';
 
 interface MenuItem {
   label: string;
@@ -89,7 +90,7 @@ export class SidebarComponent implements OnInit {
     }
   ];
 
-  constructor(private router: Router) {
+  constructor(private router: Router, private authService: AuthService) {
     // Subscribe to router events to update active route
     this.router.events.pipe(
       filter(event => event instanceof NavigationEnd)
@@ -163,6 +164,6 @@ export class SidebarComponent implements OnInit {
 
   logout() {
     // Implement logout logic here
-    this.router.navigate(['/login']);
+    this.authService.signOut()
   }
 }

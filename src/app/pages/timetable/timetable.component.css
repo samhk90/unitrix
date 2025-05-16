@@ -1,0 +1,68 @@
+.timetable-container {
+  @apply min-h-screen bg-gray-50;
+}
+
+table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+th, td {
+  @apply border border-gray-200;
+}
+
+th {
+  @apply bg-gray-50 font-semibold text-sm text-gray-700 px-4 py-2;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+td {
+  @apply px-4 py-2 text-sm;
+  min-width: 150px;
+  vertical-align: top;
+}
+
+.time-slot {
+  @apply bg-white p-2 rounded-md shadow-sm border transition-all duration-200;
+}
+
+.time-slot:hover {
+  @apply shadow-md;
+}
+
+.subject-name {
+  @apply font-medium text-gray-900;
+}
+
+.subject-details {
+  @apply text-sm text-gray-600;
+}
+
+.batch-tag {
+  @apply inline-block px-2 py-1 rounded-full text-xs font-medium;
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+/* Loading spinner */
+.spinner {
+  @apply w-8 h-8 border-4 border-blue-200 rounded-full;
+  border-top-color: #3B82F6;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Subject type styles */
+.subject-practical {
+  @apply bg-blue-50 border-blue-200;
+}
+
+.subject-theory {
+  @apply bg-green-50 border-green-200;
+}

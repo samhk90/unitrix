@@ -1,150 +1,135 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-
-interface Student {
-  rollNo: string;
-  name: string;
-  status: 'present' | 'absent' | null;
-  remarks?: string;
-}
-
-interface Lecture {
-  id: string;
-  teacherName: string;
-  department: string;
-  subject: string;
-  className: string;
-  batch: string;
-  timeFrom: string;
-  students: Student[];
-}
+import { AttendanceService, Lecture, Student } from '../../services/attendance.service';
+import { AlertService } from '../../services/alert.service';
 
 @Component({
   selector: 'app-attendance',
-  templateUrl: './attendance.component.html',
-  styleUrls: ['./attendance.component.css'],
   standalone: true,
-  imports: [CommonModule, FormsModule]
+  imports: [CommonModule, FormsModule],
+  templateUrl: './attendance.component.html',
+  styleUrls: ['./attendance.component.css']
 })
 export class AttendanceComponent implements OnInit {
-  lectures: Lecture[] = [
-    {
-      id: '1',
-      teacherName: 'N Zaman',
-      department: 'Computer',
-      subject: 'Computer Graphics',
-      className: 'SE_Computer',
-      batch: 'A',
-      timeFrom: '12:30',
-      students: [
-        { rollNo: 'SE001', name: 'John Doe', status: null },
-        { rollNo: 'SE002', name: 'Jane Smith', status: null },
-        { rollNo: 'SE003', name: 'Mike Johnson', status: null },
-      ]
-    },
-    {
-      id: '2',
-      teacherName: 'M Khan',
-      department: 'Computer',
-      subject: 'Database Management',
-      className: 'SE_Computer',
-      batch: 'B',
-      timeFrom: '14:30',
-      students: [
-        { rollNo: 'SE004', name: 'Sarah Williams', status: null },
-        { rollNo: 'SE005', name: 'David Brown', status: null },
-        { rollNo: 'SE006', name: 'Emma Davis', status: null },
-      ]
-    }
-  ];
-
   selectedLecture: string = '';
+  lectures: Lecture[] = [];
+  students: Student[] = [];
+  isLoading = false;
+
+  // Header card data
   teacherName: string = '';
   department: string = '';
   subject: string = '';
   className: string = '';
   batch: string = '';
-  date: string = '';
   timeFrom: string = '';
   timeTo: string = '';
-  students: Student[] = [];
+  date: Date = new Date();
 
-  constructor() { }
+  constructor(
+    private attendanceService: AttendanceService,
+    private alertService: AlertService
+  ) {}
 
-  ngOnInit(): void {
-    // Initialize with empty values
+  ngOnInit() {
+    this.loadTodayLectures();
   }
 
-  onLectureSelect(): void {
-    if (this.selectedLecture) {
-      const lecture = this.lectures.find(l => l.id === this.selectedLecture);
-      if (lecture) {
-        this.teacherName = lecture.teacherName;
-        this.department = lecture.department;
-        this.subject = lecture.subject;
-        this.className = lecture.className;
-        this.batch = lecture.batch;
-        this.timeFrom = lecture.timeFrom;
-        this.timeTo = lecture.timeFrom; // Same as timeFrom as per previous requirement
-        this.students = [...lecture.students]; // Create a new array to avoid reference issues
-        this.date = new Date().toISOString().split('T')[0]; // Set today's date
-      }
-    } else {
-      this.resetForm();
+  loadTodayLectures() {
+    this.isLoading = true;
+    const teacher = JSON.parse(localStorage.getItem('teacher') || '{}');
+    const teacherId = teacher?.teacher_id;
+    
+    if (!teacherId) {
+      this.alertService.error('Teacher ID not found. Please login again.');
+      this.isLoading = false;
+      return;
     }
-  }
 
-  resetForm() {
-    this.teacherName = '';
-    this.department = '';
-    this.subject = '';
-    this.className = '';
-    this.batch = '';
-    this.date = '';
-    this.timeFrom = '';
-    this.timeTo = '';
-    this.students = [];
-  }
+    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const today = days[new Date().getDay()];
 
-  markAllPresent(): void {
-    this.students.forEach(student => student.status = 'present');
-  }
-
-  markAllAbsent(): void {
-    this.students.forEach(student => student.status = 'absent');
-  }
-
-  saveDraft(): void {
-    console.log('Saving draft...', {
-      lectureId: this.selectedLecture,
-      teacherName: this.teacherName,
-      department: this.department,
-      subject: this.subject,
-      className: this.className,
-      batch: this.batch,
-      date: this.date,
-      timeFrom: this.timeFrom,
-      timeTo: this.timeTo,
-      attendance: this.students
+    this.attendanceService.getTeacherLectures(teacherId, today).subscribe({
+      next: (response) => {
+        this.lectures = response.data;
+        this.isLoading = false;
+      },
+      error: (error) => {
+        this.alertService.error(error.error?.message || 'Failed to load lectures');
+        this.isLoading = false;
+      }
     });
-    // Implement save draft functionality
   }
 
-  submitAttendance(): void {
-    const attendanceData = {
-      lectureId: this.selectedLecture,
-      teacherName: this.teacherName,
-      department: this.department,
-      subject: this.subject,
-      className: this.className,
-      batch: this.batch,
-      date: this.date,
-      timeFrom: this.timeFrom,
-      timeTo: this.timeTo,
-      attendance: this.students
-    };
-    console.log('Submitting attendance:', attendanceData);
-    // Implement submit functionality
+  onLectureSelect() {
+    if (!this.selectedLecture) return;
+
+    this.isLoading = true;
+    const selectedLectureData = this.lectures.find(l => l.id === this.selectedLecture);
+    
+    if (selectedLectureData) {
+      // Update header card data
+      this.teacherName = selectedLectureData.teacherName;
+      this.department = selectedLectureData.department;
+      this.subject = selectedLectureData.subject;
+      this.className = selectedLectureData.className;
+      this.batch = selectedLectureData.batch;
+      this.timeFrom = selectedLectureData.timeFrom;
+      this.timeTo = selectedLectureData.timeTo;
+    }
+
+    this.attendanceService.getLectureStudents(this.selectedLecture).subscribe({
+      next: (response) => {
+        this.students = response.data;
+        this.isLoading = false;
+      },
+      error: (error) => {
+        this.alertService.error(error.error?.message || 'Failed to load students');
+        this.isLoading = false;
+      }
+    });
+  }
+
+  markAllPresent() {
+    this.students = this.students.map(student => ({
+      ...student,
+      status: 'present'
+    }));
+  }
+
+  markAllAbsent() {
+    this.students = this.students.map(student => ({
+      ...student,
+      status: 'absent'
+    }));
+  }
+
+  submitAttendance() {
+    if (!this.selectedLecture || this.students.length === 0) {
+      this.alertService.error('No students or lecture selected');
+      return;
+    }
+
+    this.isLoading = true;
+    const attendanceData = this.students.map(student => ({
+      student_id: student.id,
+      status: student.status
+    }));
+
+    const today = new Date().toISOString().split('T')[0];
+
+    this.attendanceService.submitAttendance(this.selectedLecture, attendanceData, today).subscribe({
+      next: (response) => {
+        this.alertService.success('Attendance submitted successfully');
+        this.selectedLecture = '';
+        this.students = [];
+        this.isLoading = false;
+      },
+      error: (error) => {
+        this.alertService.error(error.error?.message || 'Failed to submit attendance');
+        this.isLoading = false;
+      }
+    });
   }
 }

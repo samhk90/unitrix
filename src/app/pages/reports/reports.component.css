@@ -1,0 +1,47 @@
+/* Chart container styles */
+canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Table responsive styles */
+.table-container {
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Loading state styles */
+.loading-overlay {
+  position: relative;
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+/* Form control focus states */
+.form-select:focus,
+.form-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+/* Print styles for PDF export */
+@media print {
+  .no-print {
+    display: none;
+  }
+  
+  .print-only {
+    display: block;
+  }
+  
+  table {
+    break-inside: auto;
+  }
+  
+  tr {
+    break-inside: avoid;
+    break-after: auto;
+  }
+}
