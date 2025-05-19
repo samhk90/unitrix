@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { BaseService } from './base.service';
@@ -32,27 +32,109 @@ export interface TeacherSubject {
   }
 }
 
-export interface AttendanceReport {
-  report_type: 'daily' | 'weekly' | 'monthly' | 'subject-wise' | 'custom';
-  class_name: string;
+// Daily attendance response interfaces
+export interface DailyAttendanceStudent {
+  rollNo: string;
+  name: string;
+  status: 'Present' | 'Absent';
+}
+
+export interface DailyAttendanceResponse {
+  date: string;
+  class: string;
   subject?: string;
-  date_range: {
+  stats: {
+    present: number;
+    absent: number;
+    total: number;
+  };
+  students: DailyAttendanceStudent[];
+}
+
+// Weekly attendance response interfaces
+export interface WeeklyAttendanceStudent {
+  rollNo: string;
+  name: string;
+  presentDays: number;
+  absentDays: number;
+  percentage: number;
+}
+
+export interface WeeklyAttendanceResponse {
+  week: {
     start: string;
     end: string;
   };
-  statistics: {
-    total_students: number;
-    average_attendance: number;
+  class: string;
+  subject?: string;
+  weeklyStats: WeeklyAttendanceStudent[];
+}
+
+// Subject-wise attendance response interfaces
+export interface SubjectAttendanceStudent {
+  rollNo: string;
+  name: string;
+  totalLectures: number;
+  attended: number;
+  percentage: number;
+}
+
+export interface SubjectAttendanceResponse {
+  class: string;
+  subject: string;
+  totalLectures: number;
+  studentStats: SubjectAttendanceStudent[];
+}
+
+// Custom date range attendance response interfaces
+export interface CustomAttendanceStudent {
+  rollNo: string;
+  name: string;
+  presentDays: number;
+  absentDays: number;
+  percentage: number;
+}
+
+export interface CustomAttendanceResponse {
+  dateRange: {
+    start: string;
+    end: string;
+    totalDays: number;
   };
-  attendance_data: Array<{
-    student_id: string;
-    roll_number: string;
-    name: string;
-    total_classes: number;
-    present_classes: number;
-    absent_classes: number;
-    attendance_percentage: number;
-  }>;
+  class: string;
+  subject?: string;
+  summary: {
+    totalStudents: number;
+    belowThreshold: number;
+    averageAttendance: number;
+  };
+  studentStats: CustomAttendanceStudent[];
+}
+
+// Monthly attendance response interfaces
+export interface MonthlyAttendanceStudent {
+  rollNo: string;
+  name: string;
+  totalDays: number;
+  presentDays: number;
+  absentDays: number;
+  percentage: number;
+}
+
+export interface MonthlyAttendanceResponse {
+  month: {
+    start: string;
+    end: string;
+    totalDays: number;
+  };
+  class: string;
+  subject?: string;
+  summary: {
+    totalStudents: number;
+    averageAttendance: number;
+    belowThreshold: number;
+  };
+  monthlyStats: MonthlyAttendanceStudent[];
 }
 
 @Injectable({
@@ -65,37 +147,76 @@ export class ReportService extends BaseService {
     super();
   }
 
-  getDepartmentClasses(teacherId: string): Observable<DepartmentClass[]> {
-    return this.http.get<DepartmentClass[]>(`${this.apiUrl}/department-classes/?teacher_id=${teacherId}`);
+  getDepartmentClasses(teacherId: string): Observable<{ data: DepartmentClass[] }> {
+    return this.http.get<{ data: DepartmentClass[] }>(`${this.apiUrl}/department-classes?teacher_id=${teacherId}`);
   }
 
   getTeacherSubjects(teacherId: string): Observable<TeacherSubject[]> {
-    return this.http.get<TeacherSubject[]>(`${this.apiUrl}/teacher-subjects/?teacher_id=${teacherId}`);
+    return this.http.get<TeacherSubject[]>(`${this.apiUrl}/teacher-subjects?teacher_id=${teacherId}`);
   }
 
-  getAttendanceReport(params: {
-    classId: string;
-    reportType: 'daily' | 'weekly' | 'monthly' | 'subject-wise' | 'custom';
-    subjectId?: string;
-    date?: string;
-    startDate?: string;
-    endDate?: string;
-  }): Observable<AttendanceReport> {
-    let url = `${this.apiUrl}/attendance-report/?class_id=${params.classId}&report_type=${params.reportType}`;
+  getDailyAttendance(params: { 
+    classId: string; 
+    date: string; 
+    subjectId?: string; 
+  }): Observable<DailyAttendanceResponse> {
+    const httpParams = new HttpParams()
+      .set('classId', params.classId)
+      .set('date', params.date)
+      .set('subject_id', params.subjectId || '');
 
-    if (params.subjectId) {
-      url += `&subject_id=${params.subjectId}`;
-    }
-    if (params.date) {
-      url += `&date=${params.date}`;
-    }
-    if (params.startDate) {
-      url += `&start_date=${params.startDate}`;
-    }
-    if (params.endDate) {
-      url += `&end_date=${params.endDate}`;
-    }
+    return this.http.get<DailyAttendanceResponse>(`${this.apiUrl}/attendance/daily/`, { params: httpParams });
+  }
 
-    return this.http.get<AttendanceReport>(url);
+  getWeeklyAttendance(params: { 
+    classId: string; 
+    date: string; 
+    subjectId?: string; 
+  }): Observable<WeeklyAttendanceResponse> {
+    const httpParams = new HttpParams()
+      .set('classId', params.classId)
+      .set('date', params.date)
+      .set('subject_id', params.subjectId || '');
+
+    return this.http.get<WeeklyAttendanceResponse>(`${this.apiUrl}/attendance/weekly/`, { params: httpParams });
+  }
+
+  getSubjectAttendance(params: { 
+    classId: string; 
+    subjectId: string; 
+  }): Observable<SubjectAttendanceResponse> {
+    const httpParams = new HttpParams()
+      .set('classId', params.classId)
+      .set('subject_id', params.subjectId);
+
+    return this.http.get<SubjectAttendanceResponse>(`${this.apiUrl}/attendance/subject/`, { params: httpParams });
+  }
+
+  getCustomAttendance(params: { 
+    classId: string; 
+    startDate: string; 
+    endDate: string; 
+    subjectId?: string; 
+  }): Observable<CustomAttendanceResponse> {
+    const httpParams = new HttpParams()
+      .set('classId', params.classId)
+      .set('start_date', params.startDate)
+      .set('end_date', params.endDate)
+      .set('subject_id', params.subjectId || '');
+
+    return this.http.get<CustomAttendanceResponse>(`${this.apiUrl}/attendance/custom/`, { params: httpParams });
+  }
+
+  getMonthlyAttendance(params: { 
+    classId: string; 
+    date: string; 
+    subjectId?: string; 
+  }): Observable<MonthlyAttendanceResponse> {
+    const httpParams = new HttpParams()
+      .set('classId', params.classId)
+      .set('date', params.date)
+      .set('subject_id', params.subjectId || '');
+
+    return this.http.get<MonthlyAttendanceResponse>(`${this.apiUrl}/attendance/monthly/`, { params: httpParams });
   }
 }

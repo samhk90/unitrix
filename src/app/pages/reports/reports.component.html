@@ -20,7 +20,7 @@
                                 <select [(ngModel)]="selectedClass" 
                                         class="w-full px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm transition-all duration-200">
                                     <option value="">Select a Class</option>
-                                    <option *ngFor="let class of classes" [value]="class.id">{{class.name}}</option>
+                                    <option *ngFor="let classItem of classes" [value]="classItem.id">{{classItem.name}}</option>
                                 </select>
                             </div>
                         </div>
@@ -108,8 +108,8 @@
                             {{ isGenerating ? 'Generating...' : 'Generate Report' }}
                         </button>
 
-                        <!-- Download buttons (only visible after report is generated) -->
-                        <div *ngIf="reportData.length > 0" class="flex gap-4">
+                        <!-- Download buttons -->
+                        <div *ngIf="dailyReport || weeklyReport || monthlyReport || subjectReport || customReport" class="flex gap-4">
                             <button (click)="exportToPDF()"
                                     class="inline-flex items-center px-6 py-2.5 border border-transparent text-sm font-medium rounded-lg text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all duration-200">
                                 <svg class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -131,37 +131,92 @@
         </div>
 
         <!-- Report Preview Section -->
-        <div *ngIf="reportData" class="space-y-8">
+        <div *ngIf="dailyReport || weeklyReport || monthlyReport || subjectReport || customReport" class="space-y-8">
             <!-- Report Table -->
             <div class="bg-white backdrop-blur-xl bg-opacity-90 rounded-2xl shadow-lg border border-gray-100/50 overflow-hidden">
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead>
                             <tr class="bg-gradient-to-r from-gray-50 to-gray-100">
-                                <th *ngFor="let header of reportHeaders" 
-                                    class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                                    {{header}}
-                                </th>
+                                <ng-container [ngSwitch]="reportType">
+                                    <ng-container *ngSwitchCase="'daily'">
+                                        <th *ngFor="let header of ['Roll No', 'Name', 'Status']" class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">{{header}}</th>
+                                    </ng-container>
+                                    <ng-container *ngSwitchCase="'weekly'">
+                                        <th *ngFor="let header of ['Roll No', 'Name', 'Present Days', 'Absent Days', 'Percentage']" class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">{{header}}</th>
+                                    </ng-container>
+                                    <ng-container *ngSwitchCase="'subject-wise'">
+                                        <th *ngFor="let header of ['Roll No', 'Name', 'Total Lectures', 'Attended', 'Percentage']" class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">{{header}}</th>
+                                    </ng-container>
+                                    <ng-container *ngSwitchCase="'monthly'">
+                                        <th *ngFor="let header of ['Roll No', 'Name', 'Total Days', 'Present Days', 'Absent Days', 'Percentage']" class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">{{header}}</th>
+                                    </ng-container>
+                                    <ng-container *ngSwitchCase="'custom'">
+                                        <th *ngFor="let header of ['Roll No', 'Name', 'Present Days', 'Absent Days', 'Percentage']" class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">{{header}}</th>
+                                    </ng-container>
+                                </ng-container>
                             </tr>
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">
-                            <tr *ngFor="let row of reportData" 
-                                class="hover:bg-gray-50 transition-colors duration-200">
-                                <td *ngFor="let cell of row" 
-                                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                    {{cell}}
-                                </td>
-                            </tr>
+                            <ng-container [ngSwitch]="reportType">
+                                <ng-container *ngSwitchCase="'daily'">
+                                    <tr *ngFor="let student of dailyReport?.students" class="hover:bg-gray-50 transition-colors duration-200">
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{student.rollNo}}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{student.name}}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{student.status}}</td>
+                                    </tr>
+                                </ng-container>
+                                <ng-container *ngSwitchCase="'weekly'">
+                                    <tr *ngFor="let stat of weeklyReport?.weeklyStats" class="hover:bg-gray-50 transition-colors duration-200">
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{stat.rollNo}}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{stat.name}}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{stat.presentDays}}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{stat.absentDays}}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{stat.percentage}}%</td>
+                                    </tr>
+                                </ng-container>
+                                <ng-container *ngSwitchCase="'subject-wise'">
+                                    <tr *ngFor="let stat of subjectReport?.studentStats" class="hover:bg-gray-50 transition-colors duration-200">
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{stat.rollNo}}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{stat.name}}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{stat.totalLectures}}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{stat.attended}}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{stat.percentage}}%</td>
+                                    </tr>
+                                </ng-container>
+                                <ng-container *ngSwitchCase="'monthly'">
+                                    <tr *ngFor="let stat of monthlyReport?.monthlyStats" class="hover:bg-gray-50 transition-colors duration-200">
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{stat.rollNo}}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{stat.name}}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{stat.totalDays}}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{stat.presentDays}}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{stat.absentDays}}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{stat.percentage}}%</td>
+                                    </tr>
+                                </ng-container>
+                                <ng-container *ngSwitchCase="'custom'">
+                                    <tr *ngFor="let stat of customReport?.studentStats" class="hover:bg-gray-50 transition-colors duration-200">
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{stat.rollNo}}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{stat.name}}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{stat.presentDays}}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{stat.absentDays}}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{stat.percentage}}%</td>
+                                    </tr>
+                                </ng-container>
+                            </ng-container>
                         </tbody>
                     </table>
                 </div>
             </div>
 
             <!-- Attendance Graph -->
-            <div class="bg-white backdrop-blur-xl bg-opacity-90 rounded-2xl shadow-lg border border-gray-100/50 p-6">
-                <h3 class="text-lg font-semibold text-gray-900 mb-4">Attendance Overview</h3>
-                <div class="h-[400px]">
-                    <canvas #attendanceChart id="attendanceChart"></canvas>
+            <div *ngIf="dailyReport?.stats || weeklyReport?.weeklyStats || monthlyReport?.monthlyStats || subjectReport?.studentStats || customReport?.studentStats" 
+                 class="bg-white backdrop-blur-xl bg-opacity-90 rounded-2xl shadow-lg border border-gray-100/50 report-chart-section">
+                <div class="h-full p-6">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Attendance Overview</h3>
+                    <div class="chart-container">
+                        <canvas #attendanceChart></canvas>
+                    </div>
                 </div>
             </div>
         </div>

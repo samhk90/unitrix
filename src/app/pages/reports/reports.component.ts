@@ -1,14 +1,23 @@
-import { Component, OnInit, AfterViewInit, ViewChild, ElementRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Chart, registerables } from 'chart.js';
+import { Chart, ChartConfiguration, registerables } from 'chart.js';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as Papa from 'papaparse';
 import { ReportService } from '../../services/report.service';
-import type { DepartmentClass, TeacherSubject, AttendanceReport } from '../../services/report.service';
+import type { 
+  DepartmentClass, 
+  TeacherSubject, 
+  DailyAttendanceResponse,
+  WeeklyAttendanceResponse,
+  MonthlyAttendanceResponse,
+  SubjectAttendanceResponse,
+  CustomAttendanceResponse
+} from '../../services/report.service';
 import { firstValueFrom } from 'rxjs';
 
+// Register Chart.js components
 Chart.register(...registerables);
 
 @Component({
@@ -18,29 +27,37 @@ Chart.register(...registerables);
   templateUrl: './reports.component.html',
   styleUrls: ['./reports.component.css']
 })
-export class ReportsComponent implements OnInit, AfterViewInit {
-  @ViewChild('attendanceChart') chartCanvas!: ElementRef;
+export class ReportsComponent implements OnInit, OnDestroy {
+  @ViewChild('attendanceChart', { static: false }) chartCanvas!: ElementRef<HTMLCanvasElement>;
 
-  // Form selections
+  // Class selection
   selectedClass: string = '';
-  selectedSubject: string = '';
+  classes: DepartmentClass[] = [];
+
+  // Report type
   reportType: 'daily' | 'weekly' | 'monthly' | 'subject-wise' | 'custom' = 'daily';
+  
+  // Subject selection
+  selectedSubject: string = '';
+  subjects: TeacherSubject[] = [];
+
+  // Date selections for different report types
   selectedDate: string = '';
   selectedWeek: string = '';
   selectedMonth: string = '';
   customStartDate: string = '';
   customEndDate: string = '';
 
-  // Data from service
-  classes: DepartmentClass[] = [];
-  subjects: TeacherSubject[] = [];
-  currentTeacherId: string = '';
+  // Report data based on type
+  dailyReport: DailyAttendanceResponse | null = null;
+  weeklyReport: WeeklyAttendanceResponse | null = null;
+  monthlyReport: MonthlyAttendanceResponse | null = null;
+  subjectReport: SubjectAttendanceResponse | null = null;
+  customReport: CustomAttendanceResponse | null = null;
 
-  // Report data
-  reportHeaders: string[] = [];
-  reportData: any[][] = [];
-  chart: Chart | null = null;
+  // UI state
   isGenerating: boolean = false;
+  private chart: Chart | null = null;
 
   constructor(private reportService: ReportService) {}
 
@@ -49,43 +66,48 @@ export class ReportsComponent implements OnInit, AfterViewInit {
     this.loadTeacherData();
   }
 
-  ngAfterViewInit(): void {
-    if (this.reportData.length > 0) {
-      this.initializeChart();
-    }
-  }
-
   private async loadTeacherData(): Promise<void> {
     try {
-      // TODO: Get teacher ID from auth service
-      this.currentTeacherId = 'current-teacher-id';
+      // Use hardcoded teacher ID for now - in real app this would come from auth service
+      const teacher=JSON.parse(localStorage.getItem('teacher') || '{}');
+      const teacherId = teacher.teacher_id;
       
-      // Load classes and subjects using firstValueFrom for better async/await support
-      const [classes, subjects] = await Promise.all([
-        firstValueFrom(this.reportService.getDepartmentClasses(this.currentTeacherId)),
-        firstValueFrom(this.reportService.getTeacherSubjects(this.currentTeacherId))
-      ]);
+      // Get teacher's assigned classes
+      const classesResponse = await firstValueFrom(this.reportService.getDepartmentClasses(teacherId));
+      this.classes = classesResponse?.data || [];
 
-      this.classes = classes || [];
+      // Get teacher's subjects
+      const subjects = await firstValueFrom(this.reportService.getTeacherSubjects(teacherId));
       this.subjects = subjects || [];
+      
     } catch (error) {
       console.error('Error loading teacher data:', error);
       alert('Failed to load teacher data. Please refresh the page.');
     }
   }
 
-  onReportTypeChange(): void {
-    // Reset dates when report type changes
-    this.selectedDate = '';
-    this.selectedWeek = '';
-    this.selectedMonth = '';
-    this.customStartDate = '';
-    this.customEndDate = '';
-    this.reportData = [];
-    if (this.chart) {
+  ngOnDestroy(): void {
+    this.destroyChart();
+  }
+
+  private destroyChart(): void {
+    if (this.chart instanceof Chart) {
       this.chart.destroy();
       this.chart = null;
     }
+  }
+
+  onReportTypeChange(): void {
+    // Reset data when report type changes
+    this.selectedDate = new Date().toISOString().split('T')[0];
+    this.customStartDate = '';
+    this.customEndDate = '';
+    this.dailyReport = null;
+    this.weeklyReport = null;
+    this.monthlyReport = null;
+    this.subjectReport = null;
+    this.customReport = null;
+    this.destroyChart();
   }
 
   async generateReport(): Promise<void> {
@@ -94,47 +116,67 @@ export class ReportsComponent implements OnInit, AfterViewInit {
       return;
     }
 
-    if (this.reportType === 'subject-wise' && !this.selectedSubject) {
-      alert('Please select a subject');
-      return;
-    }
-
     this.isGenerating = true;
-    try {
-      // Prepare parameters for the report
-      const params: any = {
-        classId: this.selectedClass,
-        reportType: this.reportType,
-      };
+    this.destroyChart();
 
-      // Add parameters based on report type
+    try {
       switch (this.reportType) {
         case 'daily':
-          params.date = this.selectedDate;
+          this.dailyReport = await firstValueFrom(this.reportService.getDailyAttendance({
+            classId: this.selectedClass,
+            date: this.selectedDate,
+            subjectId: this.selectedSubject
+          }));
+          setTimeout(() => this.initializeChart(), 0);
           break;
-        case 'weekly':
-          params.startDate = this.selectedWeek;
-          params.endDate = new Date(new Date(this.selectedWeek).getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-          break;
-        case 'monthly':
-          const [year, month] = this.selectedMonth.split('-');
-          params.startDate = `${year}-${month}-01`;
-          params.endDate = new Date(parseInt(year), parseInt(month), 0).toISOString().split('T')[0];
-          break;
-        case 'subject-wise':
-          params.subjectId = this.selectedSubject;
-          break;
-        case 'custom':
-          params.startDate = this.customStartDate;
-          params.endDate = this.customEndDate;
-          break;
-      }
 
-      // Get report from service
-      const report = await this.reportService.getAttendanceReport(params).toPromise();
-      if (report) {
-        this.processReportData(report);
-        this.initializeChart();
+        case 'weekly':
+          this.weeklyReport = await firstValueFrom(this.reportService.getWeeklyAttendance({
+            classId: this.selectedClass,
+            date: this.selectedDate,
+            subjectId: this.selectedSubject
+          }));
+          setTimeout(() => this.initializeChart(), 0);
+          break;
+
+        case 'monthly':
+          if (!this.selectedMonth) {
+            alert('Please select a month');
+            return;
+          }
+          this.monthlyReport = await firstValueFrom(this.reportService.getMonthlyAttendance({
+            classId: this.selectedClass,
+            date: this.selectedMonth + '-01', // First day of selected month
+            subjectId: this.selectedSubject
+          }));
+          setTimeout(() => this.initializeChart(), 0);
+          break;
+
+        case 'subject-wise':
+          if (!this.selectedSubject) {
+            alert('Please select a subject');
+            return;
+          }
+          this.subjectReport = await firstValueFrom(this.reportService.getSubjectAttendance({
+            classId: this.selectedClass,
+            subjectId: this.selectedSubject
+          }));
+          setTimeout(() => this.initializeChart(), 0);
+          break;
+
+        case 'custom':
+          if (!this.customStartDate || !this.customEndDate) {
+            alert('Please select start and end dates');
+            return;
+          }
+          this.customReport = await firstValueFrom(this.reportService.getCustomAttendance({
+            classId: this.selectedClass,
+            startDate: this.customStartDate,
+            endDate: this.customEndDate,
+            subjectId: this.selectedSubject
+          }));
+          setTimeout(() => this.initializeChart(), 0);
+          break;
       }
     } catch (error) {
       console.error('Error generating report:', error);
@@ -144,134 +186,356 @@ export class ReportsComponent implements OnInit, AfterViewInit {
     }
   }
 
-  private processReportData(report: AttendanceReport): void {
-    // Set headers based on report type
-    switch (this.reportType) {
-      case 'daily':
-        this.reportHeaders = ['Roll No', 'Student Name', 'Status', 'Time'];
-        break;
-      case 'weekly':
-      case 'monthly':
-      case 'custom':
-        this.reportHeaders = ['Roll No', 'Student Name', 'Present Days', 'Absent Days', 'Attendance %'];
-        break;
-      case 'subject-wise':
-        this.reportHeaders = ['Roll No', 'Student Name', 'Total Classes', 'Classes Attended', 'Attendance %'];
-        break;
-    }
-
-    // Transform attendance data into report rows
-    this.reportData = report.attendance_data.map((student) => {
-      const { roll_number, name, present_classes, absent_classes, attendance_percentage } = student;
-      
-      switch (this.reportType) {
-        case 'daily':
-          return [
-            roll_number,
-            name,
-            present_classes === 1 ? 'Present' : 'Absent',
-            present_classes === 1 ? '9:00 AM' : '-'
-          ];
-        default:
-          return [
-            roll_number,
-            name,
-            present_classes.toString(),
-            absent_classes.toString(),
-            `${attendance_percentage}%`
-          ];
-      }
-    });
-  }
-
   private initializeChart(): void {
-    const canvas = document.getElementById('attendanceChart') as HTMLCanvasElement;
-    if (!canvas) return;
-
-    if (this.chart) {
-      this.chart.destroy();
+    if (!this.chartCanvas?.nativeElement) {
+      console.warn('Chart canvas element not found, waiting for next render cycle');
+      return;
     }
 
-    // Prepare chart data based on report type
-    const labels = this.reportData.map(row => row[1]); // Student names
-    const data = this.reportData.map(row => parseFloat(row[row.length - 1])); // Attendance percentage
+    this.destroyChart();
 
-    this.chart = new Chart(canvas, {
-      type: 'bar',
-      data: {
-        labels: labels,
-        datasets: [{
-          label: 'Attendance Percentage',
-          data: data,
-          backgroundColor: 'rgba(59, 130, 246, 0.5)',
-          borderColor: 'rgb(59, 130, 246)',
-          borderWidth: 1
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: {
-            position: 'top',
-          },
-          title: {
-            display: true,
-            text: 'Attendance Overview'
+    const ctx = this.chartCanvas.nativeElement.getContext('2d');
+    if (!ctx) {
+      console.warn('Could not get 2D context from canvas');
+      return;
+    }
+
+    let data: ChartConfiguration['data'];
+    let title: string = '';
+
+    switch (this.reportType) {
+      case 'daily': {
+        if (!this.dailyReport) return;
+        // Show bar graph for daily attendance
+        data = {
+          labels: ['Present', 'Absent'],
+          datasets: [{
+            label: 'Number of Students',
+            data: [this.dailyReport.stats.present, this.dailyReport.stats.absent],
+            backgroundColor: [
+              'rgba(34, 197, 94, 0.6)',  // Green for present
+              'rgba(239, 68, 68, 0.6)'   // Red for absent
+            ],
+            borderColor: [
+              'rgb(34, 197, 94)',
+              'rgb(239, 68, 68)'
+            ],
+            borderWidth: 1,
+            barThickness: 60
+          }]
+        };
+        title = `Daily Attendance Overview (${this.dailyReport.date})`;
+        break;
+      }
+
+      case 'weekly': {
+        if (!this.weeklyReport) return;
+        // Line graph for weekly trend
+        // Create array of days for the week
+        const startDate = new Date(this.weeklyReport.week.start);
+        const endDate = new Date(this.weeklyReport.week.end);
+        const days = [];
+        const presentCounts = new Array(7).fill(0);
+        const absentCounts = new Array(7).fill(0);
+        
+        // Generate array of days
+        for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+          days.push(d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }));
+        }
+
+        // Calculate daily totals
+        this.weeklyReport.weeklyStats.forEach(stat => {
+          const daysAttended = Math.min(stat.presentDays, days.length);
+          const daysAbsent = Math.min(stat.absentDays, days.length);
+          
+          // Distribute present days across the week
+          for (let i = 0; i < daysAttended; i++) {
+            presentCounts[i]++;
           }
-        },
-        scales: {
-          y: {
-            beginAtZero: true,
-            max: 100,
+          // Distribute absent days across the week
+          for (let i = 0; i < daysAbsent; i++) {
+            absentCounts[i]++;
+          }
+        });
+
+        data = {
+          labels: days,
+          datasets: [
+            {
+              label: 'Present Students',
+              data: presentCounts,
+              borderColor: 'rgb(34, 197, 94)',
+              backgroundColor: 'rgba(34, 197, 94, 0.1)',
+              tension: 0.4,
+              fill: true
+            },
+            {
+              label: 'Absent Students',
+              data: absentCounts,
+              borderColor: 'rgb(239, 68, 68)',
+              backgroundColor: 'rgba(239, 68, 68, 0.1)',
+              tension: 0.4,
+              fill: true
+            }
+          ]
+        };
+        title = `Weekly Attendance Trend (${this.weeklyReport.week.start} to ${this.weeklyReport.week.end})`;
+        break;
+      }
+
+      case 'monthly': {
+        if (!this.monthlyReport) return;
+        // Line graph for monthly trend
+        const startDate = new Date(this.monthlyReport.month.start);
+        const endDate = new Date(this.monthlyReport.month.end);
+        const weeks = [];
+        const attendanceData = [];
+        
+        // Generate array of week ranges
+        let currentDate = new Date(startDate);
+        while (currentDate <= endDate) {
+          const weekEnd = new Date(currentDate);
+          weekEnd.setDate(weekEnd.getDate() + 6);
+          weeks.push(`Week ${Math.ceil(currentDate.getDate() / 7)}`);
+          
+          // Calculate average attendance for this week
+          const weekStats = this.monthlyReport.monthlyStats.reduce((acc, stat) => {
+            const weekAttendance = (stat.presentDays / stat.totalDays) * 100;
+            return acc + weekAttendance;
+          }, 0) / this.monthlyReport.monthlyStats.length;
+          
+          attendanceData.push(weekStats);
+          
+          currentDate.setDate(currentDate.getDate() + 7);
+        }
+
+        data = {
+          labels: weeks,
+          datasets: [{
+            label: 'Average Attendance %',
+            data: attendanceData,
+            borderColor: 'rgb(59, 130, 246)',
+            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+            tension: 0.4,
+            fill: true
+          }]
+        };
+        title = `Monthly Attendance Trend (${this.monthlyReport.month.start} to ${this.monthlyReport.month.end})`;
+        break;
+      }
+
+      case 'subject-wise': {
+        if (!this.subjectReport) return;
+        // Line graph for subject-wise trend
+        data = {
+          labels: this.subjectReport.studentStats.map(s => s.name),
+          datasets: [{
+            label: 'Attendance Percentage',
+            data: this.subjectReport.studentStats.map(s => s.percentage),
+            borderColor: 'rgb(59, 130, 246)',
+            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+            tension: 0.4,
+            fill: true
+          }]
+        };
+        title = `Subject-wise Attendance Trend - ${this.subjectReport.subject}`;
+        break;
+      }
+
+      case 'custom': {
+        if (!this.customReport) return;
+        // Line graph for custom period trend
+        data = {
+          labels: this.customReport.studentStats.map(s => s.name),
+          datasets: [{
+            label: 'Attendance Percentage',
+            data: this.customReport.studentStats.map(s => 
+              (s.presentDays / (s.presentDays + s.absentDays) * 100)
+            ),
+            borderColor: 'rgb(139, 92, 246)',
+            backgroundColor: 'rgba(139, 92, 246, 0.1)',
+            tension: 0.4,
+            fill: true
+          }]
+        };
+        title = `Custom Period Attendance Trend (${this.customReport.dateRange.start} to ${this.customReport.dateRange.end})`;
+        break;
+      }
+
+      default:
+        return;
+    }
+
+    if (!data) {
+      console.warn('No data available for chart');
+      return;
+    }
+
+    try {
+      this.chart = new Chart(ctx, {
+        type: this.reportType === 'daily' ? 'bar' : 'line',
+        data,
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          layout: {
+            padding: {
+              top: 20,
+              right: 20,
+              bottom: 20,
+              left: 20
+            }
+          },
+          plugins: {
             title: {
               display: true,
-              text: 'Attendance %'
+              text: title,
+              font: { size: 16, weight: 'bold' },
+              padding: {
+                top: 10,
+                bottom: 30
+              }
+            },
+            legend: {
+              position: 'top',
+              display: true,
+              labels: {
+                padding: 20,
+                boxWidth: 15,
+                font: { size: 12 }
+              }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              title: {
+                display: true,
+                text: this.reportType === 'daily' ? 'Number of Students' : 'Attendance Percentage (%)',
+                font: { size: 12, weight: 'bold' }
+              }
+            },
+            x: {
+              title: {
+                display: true,
+                text: (() => {
+                  switch(this.reportType) {
+                    case 'daily': return 'Attendance Status';
+                    case 'weekly': return 'Days of the Week';
+                    case 'monthly': return 'Weeks of the Month';
+                    default: return 'Students';
+                  }
+                })(),
+                font: { size: 12, weight: 'bold' }
+              }
             }
           }
         }
-      }
-    });
+      });
+    } catch (error) {
+      console.error('Error initializing chart:', error);
+    }
   }
 
   exportToPDF(): void {
     const doc = new jsPDF();
-    const title = `Attendance Report - ${this.reportType.toUpperCase()}`;
-    
+    let title: string;
+    let data: any[][] = [];
+    let headers: string[] = [];
+
+    // Set up data based on report type
+    switch (this.reportType) {
+      case 'daily': {
+        if (!this.dailyReport) return;
+        title = `Daily Attendance Report - ${this.dailyReport.date}`;
+        headers = ['Roll No', 'Name', 'Status'];
+        data = this.dailyReport.students.map(s => [
+          s.rollNo,
+          s.name,
+          s.status
+        ]);
+        break;
+      }
+
+      case 'weekly': {
+        if (!this.weeklyReport) return;
+        title = `Weekly Attendance Report (${this.weeklyReport.week.start} to ${this.weeklyReport.week.end})`;
+        headers = ['Roll No', 'Name', 'Present Days', 'Absent Days', 'Percentage'];
+        data = this.weeklyReport.weeklyStats.map(s => [
+          s.rollNo,
+          s.name,
+          s.presentDays,
+          s.absentDays,
+          `${s.percentage}%`
+        ]);
+        break;
+      }
+
+      case 'monthly': {
+        if (!this.monthlyReport) return;
+        title = `Monthly Attendance Report (${this.monthlyReport.month.start} to ${this.monthlyReport.month.end})`;
+        headers = ['Roll No', 'Name', 'Total Days', 'Present Days', 'Absent Days', 'Percentage'];
+        data = this.monthlyReport.monthlyStats.map(s => [
+          s.rollNo,
+          s.name,
+          s.totalDays,
+          s.presentDays,
+          s.absentDays,
+          `${s.percentage}%`
+        ]);
+        break;
+      }
+
+      case 'subject-wise': {
+        if (!this.subjectReport) return;
+        title = `Subject Attendance Report - ${this.subjectReport.subject}`;
+        headers = ['Roll No', 'Name', 'Total Lectures', 'Attended', 'Percentage'];
+        data = this.subjectReport.studentStats.map(s => [
+          s.rollNo,
+          s.name,
+          s.totalLectures,
+          s.attended,
+          `${s.percentage}%`
+        ]);
+        break;
+      }
+
+      case 'custom': {
+        if (!this.customReport) return;
+        title = `Custom Period Attendance Report (${this.customReport.dateRange.start} to ${this.customReport.dateRange.end})`;
+        headers = ['Roll No', 'Name', 'Present Days', 'Absent Days', 'Percentage'];
+        data = this.customReport.studentStats.map(s => [
+          s.rollNo,
+          s.name,
+          s.presentDays,
+          s.absentDays,
+          `${s.percentage}%`
+        ]);
+        break;
+      }
+
+      default:
+        return;
+    }
+
     // Add title
     doc.setFontSize(16);
     doc.text(title, 14, 15);
 
-    // Add report details
-    doc.setFontSize(10);
-    const selectedClass = this.classes.find(c => c.id === this.selectedClass);
-    doc.text(`Class: ${selectedClass?.name || this.selectedClass}`, 14, 25);
-    
-    if (this.selectedSubject) {
-      const selectedSubject = this.subjects.find(s => s.subject.id === this.selectedSubject);
-      doc.text(`Subject: ${selectedSubject?.subject.name || ''}`, 14, 30);
-    }
-    
-    doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, this.selectedSubject ? 35 : 30);
-
     // Add table
     autoTable(doc, {
-      head: [this.reportHeaders],
-      body: this.reportData,
-      startY: this.selectedSubject ? 40 : 35,
+      head: [headers],
+      body: data,
+      startY: 25,
     });
-
-    // Get last auto table position
-    const finalY = (doc as any).lastAutoTable.finalY || 150;
 
     // Add chart if it exists
     if (this.chart) {
-      // Convert chart to image
-      const canvas = document.getElementById('attendanceChart') as HTMLCanvasElement;
-      const chartImage = canvas.toDataURL('image/png');
+      const chartImage = this.chartCanvas.nativeElement.toDataURL('image/png');
+      const pageHeight = doc.internal.pageSize.height;
+      const finalY = (doc as any).lastAutoTable.finalY || 25;
       
-      // Add new page if there's not enough space
-      if (finalY > 180) {
+      if (finalY + 100 > pageHeight) {
         doc.addPage();
         doc.text('Attendance Overview Chart', 14, 15);
         doc.addImage(chartImage, 'PNG', 10, 25, 190, 100);
@@ -282,98 +546,96 @@ export class ReportsComponent implements OnInit, AfterViewInit {
     }
 
     // Save the PDF
-    doc.save(`attendance-report-${this.reportType}-${new Date().getTime()}.pdf`);
+    const fileName = `attendance-report-${this.reportType}-${new Date().getTime()}.pdf`;
+    doc.save(fileName);
   }
 
   exportToCSV(): void {
-    // Format percentage values
-    const formattedReportData = this.reportData.map(row => {
-      return row.map((cell, index) => {
-        // If this is a percentage column (last column)
-        if (index === row.length - 1 && typeof cell === 'string' && cell.includes('%')) {
-          return cell.replace('%', ''); // Remove % symbol for better numeric sorting
-        }
-        return cell;
-      });
-    });
+    let data: any[][] = [];
+    let headers: string[] = [];
 
-    const selectedClass = this.classes.find(c => c.id === this.selectedClass);
-    const selectedSubject = this.subjects.find(s => s.subject.id === this.selectedSubject);
+    // Set up data based on report type
+    switch (this.reportType) {
+      case 'daily': {
+        if (!this.dailyReport) return;
+        headers = ['Roll No', 'Name', 'Status'];
+        data = this.dailyReport.students.map(s => [
+          s.rollNo,
+          s.name,
+          s.status
+        ]);
+        break;
+      }
 
-    // Prepare metadata section
-    const metadata = [
-      ['Attendance Report Details'],
-      [''],
-      [`Report Type,${this.reportType.toUpperCase()}`],
-      [`Class,${selectedClass?.name || this.selectedClass}`],
-      [`Date Generated,${new Date().toLocaleString()}`],
-      selectedSubject ? [`Subject,${selectedSubject.subject.name}`] : [],
-      [''] // Empty row for spacing
-    ];
+      case 'weekly': {
+        if (!this.weeklyReport) return;
+        headers = ['Roll No', 'Name', 'Present Days', 'Absent Days', 'Percentage'];
+        data = this.weeklyReport.weeklyStats.map(s => [
+          s.rollNo,
+          s.name,
+          s.presentDays,
+          s.absentDays,
+          s.percentage
+        ]);
+        break;
+      }
 
-    // Main report data section with proper column alignment
-    const reportSection = [
-      ['Main Report Data'],
-      [''],
-      this.reportHeaders,
-      ...formattedReportData
-    ];
+      case 'monthly': {
+        if (!this.monthlyReport) return;
+        headers = ['Roll No', 'Name', 'Total Days', 'Present Days', 'Absent Days', 'Percentage'];
+        data = this.monthlyReport.monthlyStats.map(s => [
+          s.rollNo,
+          s.name,
+          s.totalDays,
+          s.presentDays,
+          s.absentDays,
+          s.percentage
+        ]);
+        break;
+      }
 
-    // Chart data section with percentage calculations
-    const chartData = [
-      [''],
-      ['Attendance Overview Chart Data'],
-      [''],
-      ['Student Name', 'Present', 'Absent', 'Attendance Rate (%)'],
-      ...this.reportData.map(row => {
-        const presentDays = this.reportType === 'daily' ? 
-          (row[2] === 'Present' ? 1 : 0) : 
-          parseInt(row[2]);
-        const absentDays = this.reportType === 'daily' ? 
-          (row[2] === 'Absent' ? 1 : 0) : 
-          parseInt(row[3]);
-        const percentage = this.reportType === 'daily' ? 
-          (presentDays * 100) : 
-          parseFloat(row[4].replace('%', ''));
+      case 'subject-wise': {
+        if (!this.subjectReport) return;
+        headers = ['Roll No', 'Name', 'Total Lectures', 'Attended', 'Percentage'];
+        data = this.subjectReport.studentStats.map(s => [
+          s.rollNo,
+          s.name,
+          s.totalLectures,
+          s.attended,
+          s.percentage
+        ]);
+        break;
+      }
 
-        return [
-          row[1],
-          presentDays.toString(),
-          absentDays.toString(),
-          percentage.toFixed(1)
-        ];
-      })
-    ];
+      case 'custom': {
+        if (!this.customReport) return;
+        headers = ['Roll No', 'Name', 'Present Days', 'Absent Days', 'Percentage'];
+        data = this.customReport.studentStats.map(s => [
+          s.rollNo,
+          s.name,
+          s.presentDays,
+          s.absentDays,
+          s.percentage
+        ]);
+        break;
+      }
 
-    // Summary statistics
-    const summaryStats = [
-      [''],
-      ['Summary Statistics'],
-      [''],
-      ['Metric', 'Value'],
-      ['Class Average (%)', (this.reportData.reduce((acc, row) => acc + parseFloat(row[row.length - 1].replace('%', '')), 0) / this.reportData.length).toFixed(1)],
-      ['Total Students', this.reportData.length.toString()],
-      ['Perfect Attendance Count', this.reportData.filter(row => row[row.length - 1] === '100%').length.toString()]
-    ];
+      default:
+        return;
+    }
 
-    // Combine all sections
-    const csvData = [
-      ...metadata,
-      ...reportSection,
-      ...chartData,
-      ...summaryStats
-    ];
-
-    // Configure Papa Parse options for better formatting
-    const csv = Papa.unparse(csvData, {
+    // Configure Papa Parse options
+    const csv = Papa.unparse({
+      fields: headers,
+      data: data
+    }, {
       delimiter: ',',
-      header: false,
-      newline: '\r\n',
-      skipEmptyLines: false
+      header: true,
+      newline: '\r\n'
     });
 
     // Create and download the file
-    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' }); // Add BOM for Excel compatibility
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     
