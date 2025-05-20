@@ -1,162 +1,189 @@
 import { Component, OnInit } from '@angular/core';
-import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
-
-interface Document {
-  id: string;
-  name: string;
-  url: string;
-}
-
-interface Notice {
-  id: string;
-  title: string;
-  content: string;
-  category: string;
-  priority: string;
-  status: 'Draft' | 'Published';
-  publishDate: string;
-  documents: Document[];
-}
+import { FormsModule } from '@angular/forms';
+import { Notice, NoticesService } from '../../services/notices.service';
+import { AlertService } from '../../services/alert.service';
+import { ReportService, DepartmentClass } from '../../services/report.service';
 
 @Component({
   selector: 'app-notices',
-  templateUrl: './notices.component.html',
-  styleUrls: ['./notices.component.css'],
   standalone: true,
-  imports: [CommonModule, FormsModule]
+  imports: [CommonModule, FormsModule],
+  templateUrl: './notices.component.html',
+  styleUrls: ['./notices.component.css']
 })
 export class NoticesComponent implements OnInit {
   notices: Notice[] = [];
-  showModal = false;
-  searchQuery = '';
   selectedCategory = 'all';
-  selectedPriority = 'all';
+  searchQuery = '';
+  showModal = false;
+  isUploading = false;
+  isLoading = false;
+  departmentClasses: DepartmentClass[] = [];
 
-  categories = ['Event','Notice'];
-
-  newNotice: Notice = {
-    id: '',
+  newNotice: Partial<Notice> = {
     title: '',
     content: '',
-    category: 'Academic',
-    priority: 'Medium',
-    status: 'Draft',
-    publishDate: new Date().toISOString(),
-    documents: []
+    documents: [],
+    class_id: '',
+    department: '',
+    class_department: ''
   };
 
-  constructor() {}
+  constructor(
+    private noticesService: NoticesService,
+    private alertService: AlertService,
+    private reportService: ReportService
+  ) {}
 
   ngOnInit() {
-    // In a real app, you would fetch notices from a service
     this.loadNotices();
+    this.loadClasses();
+  }
+
+  private loadClasses() {
+    const teacher = JSON.parse(localStorage.getItem('teacher') || '{}');
+    const teacherId = teacher?.teacher_id;
+    
+    if (!teacherId) {
+      this.alertService.error('Teacher ID not found. Please login again.');
+      return;
+    }
+
+    this.reportService.getDepartmentClasses(teacherId).subscribe({
+      next: (response) => {
+        this.departmentClasses = response.data;
+      },
+      error: (error) => {
+        this.alertService.error('Failed to load classes');
+        console.error('Error loading classes:', error);
+      }
+    });
+  }
+
+  loadNotices() {
+    const params: any = {};
+
+    if (this.searchQuery) {
+      params.search = this.searchQuery;
+    }
+
+    const teacher = JSON.parse(localStorage.getItem('teacher') || '{}');
+    const teacherId = teacher?.teacher_id;
+    
+    if (!teacherId) {
+      this.alertService.error('Teacher ID not found. Please login again.');
+      return;
+    }
+    
+    params.teacher_id = teacherId;
+    this.isLoading = true;
+
+    this.noticesService.getNotices(params).subscribe({
+      next: (response) => {
+        this.notices = response.data;
+        this.isLoading = false;
+      },
+      error: (error) => {
+        this.alertService.error('Failed to load notices');
+        console.error('Error loading notices:', error);
+        this.isLoading = false;
+      }
+    });
   }
 
   openModal() {
+    const teacher = JSON.parse(localStorage.getItem('teacher') || '{}');
+    this.newNotice = {
+      title: '',
+      content: '',
+      documents: [],
+      class_id: '',
+      department: teacher?.department || '',
+      class_department: teacher?.department || ''
+    };
     this.showModal = true;
-    this.resetNewNotice();
   }
 
   closeModal() {
     this.showModal = false;
-    this.resetNewNotice();
   }
 
-  resetNewNotice() {
-    this.newNotice = {
-      id: '',
-      title: '',
-      content: '',
-      category: 'Academic',
-      priority: 'Medium',
-      status: 'Draft',
-      publishDate: new Date().toISOString(),
-      documents: []
-    };
-  }
+  async handleFileUpload(event: any) {
+    const files: FileList = event.target.files;
+    if (files.length === 0) return;
 
-  handleFileUpload(event: Event) {
-    const input = event.target as HTMLInputElement;
-    if (input.files) {
-      Array.from(input.files).forEach(file => {
-        // In a real app, you would upload the file to a server and get back a URL
-        const doc: Document = {
-          id: Math.random().toString(36).substr(2, 9),
-          name: file.name,
-          url: URL.createObjectURL(file)
-        };
-        this.newNotice.documents.push(doc);
-      });
+    this.isUploading = true;
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const document = await this.noticesService.uploadDocument(files[i], this.newNotice.class_id);
+        this.newNotice.documents = [...(this.newNotice.documents || []), document];
+      }
+      this.alertService.success('Documents uploaded successfully');
+    } catch (error) {
+      this.alertService.error('Failed to upload documents');
+      console.error('Error uploading documents:', error);
+    } finally {
+      this.isUploading = false;
     }
   }
 
-  removeDocument(docId: string) {
-    this.newNotice.documents = this.newNotice.documents.filter(doc => doc.id !== docId);
+  async removeDocument(docId: number) {
+    const document = this.newNotice.documents?.find(d => d.id === docId);
+    if (!document) return;
+
+    try {
+      await this.noticesService.deleteDocument(document.path);
+      this.newNotice.documents = this.newNotice.documents?.filter(d => d.id !== docId);
+      this.alertService.success('Document removed successfully');
+    } catch (error) {
+      this.alertService.error('Failed to remove document');
+      console.error('Error removing document:', error);
+    }
   }
 
   saveNotice() {
-    if (this.newNotice.id) {
-      // Update existing notice
-      const index = this.notices.findIndex(n => n.id === this.newNotice.id);
-      if (index !== -1) {
-        this.notices[index] = { ...this.newNotice };
+    this.noticesService.createNotice(this.newNotice).subscribe({
+      next: (response) => {
+        this.alertService.success('Notice created successfully');
+        this.loadNotices();
+        this.closeModal();
+      },
+      error: (error) => {
+        this.alertService.error('Failed to create notice');
+        console.error('Error creating notice:', error);
       }
-    } else {
-      // Create new notice
-      const notice = {
-        ...this.newNotice,
-        id: Math.random().toString(36).substr(2, 9)
-      };
-      this.notices.unshift(notice);
-    }
-    this.closeModal();
+    });
   }
 
   publishNotice(notice: Notice) {
-    const index = this.notices.findIndex(n => n.id === notice.id);
-    if (index !== -1) {
-      this.notices[index] = {
-        ...notice,
-        status: 'Published',
-        publishDate: new Date().toISOString()
-      };
-    }
-  }
-
-  deleteNotice(noticeId: string) {
-    this.notices = this.notices.filter(notice => notice.id !== noticeId);
-  }
-
-  private loadNotices() {
-    // Mock data - in a real app, this would come from a service
-    this.notices = [
-      {
-        id: '1',
-        title: 'End of Semester Examination Schedule',
-        content: 'The end of semester examinations will begin from June 1st, 2025...',
-        category: 'Examination',
-        priority: 'High',
-        status: 'Published',
-        publishDate: '2025-05-15',
-        documents: [
-          {
-            id: 'doc1',
-            name: 'exam_schedule.pdf',
-            url: '#'
-          }
-        ]
+    this.noticesService.publishNotice(notice.id).subscribe({
+      next: (response) => {
+        this.alertService.success('Notice published successfully');
+        this.loadNotices();
+        console.log('Notice published:', notice);
       },
-      {
-        id: '2',
-        title: 'Annual Sports Day',
-        content: 'Annual Sports Day will be held on May 20th, 2025...',
-        category: 'Event',
-        priority: 'Medium',
-        status: 'Published',
-        publishDate: '2025-05-10',
-        documents: []
+      error: (error) => {
+        this.alertService.error('Failed to publish notice');
+        console.error('Error publishing notice:', error);
       }
-    ];
+    });
+  }
+
+  deleteNotice(id: number) {
+    if (!confirm('Are you sure you want to delete this notice?')) return;
+
+    this.noticesService.deleteNotice(id).subscribe({
+      next: (response) => {
+        const docId = this.notices.find(notice => notice.id === id)?.documents[0].id;
+        this.removeDocument(docId|| 0);
+        this.alertService.success('Notice deleted successfully');
+        this.loadNotices();
+      },
+      error: (error) => {
+        this.alertService.error('Failed to delete notice');
+        console.error('Error deleting notice:', error);
+      }
+    });
   }
 }

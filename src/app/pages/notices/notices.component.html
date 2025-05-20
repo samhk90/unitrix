@@ -11,22 +11,23 @@
       placeholder="Search notices..."
       class="px-4 py-3 border border-gray-200 rounded-lg min-w-[200px] focus:border-blue-600 focus:ring-2 focus:ring-blue-100 outline-none transition duration-300"
     >
-    <select [(ngModel)]="selectedCategory" class="px-4 py-3 border border-gray-200 rounded-lg min-w-[200px] focus:border-blue-600 focus:ring-2 focus:ring-blue-100 outline-none transition duration-300">
-      <option value="all">All Categories</option>
-      <option *ngFor="let category of categories" [value]="category">
-        {{category}}
-      </option>
-    </select>
-
   </div>
 
   <div class="bg-white rounded-xl shadow-lg overflow-hidden">
-    <table class="w-full">
+    <!-- Loading State -->
+    <div *ngIf="isLoading" class="flex justify-center items-center py-8">
+      <div class="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+    </div>
+
+    <!-- Table -->
+    <table *ngIf="!isLoading" class="w-full">
       <thead>
         <tr class="border-b-2 border-gray-100">
           <th class="text-left p-4 font-semibold text-gray-600 bg-gray-50">Title</th>
-          <th class="text-left p-4 font-semibold text-gray-600 bg-gray-50">Category</th>
+          <th class="text-left p-4 font-semibold text-gray-600 bg-gray-50">Class</th>
+          <th class="text-left p-4 font-semibold text-gray-600 bg-gray-50">Department</th>
           <th class="text-left p-4 font-semibold text-gray-600 bg-gray-50">Status</th>
+          <th class="text-left p-4 font-semibold text-gray-600 bg-gray-50">Created By</th>
           <th class="text-left p-4 font-semibold text-gray-600 bg-gray-50">Publish Date</th>
           <th class="text-left p-4 font-semibold text-gray-600 bg-gray-50">Documents</th>
           <th class="text-left p-4 font-semibold text-gray-600 bg-gray-50">Actions</th>
@@ -34,14 +35,16 @@
       </thead>
       <tbody>
         <tr *ngFor="let notice of notices" class="border-b border-gray-100 hover:bg-gray-50 transition duration-150">
-          <td class="p-4 text-gray-700">{{notice.title}}</td>
-          <td class="p-4 text-gray-700">{{notice.category}}</td>    
+          <td class="p-4 text-gray-700">{{notice.title}}</td>  
+          <td class="p-4 text-gray-700">{{notice.class_name || 'All Classes'}}</td>
+          <td class="p-4 text-gray-700">{{notice.department || 'All Departments'}}</td>
           <td class="p-4 text-gray-700">{{notice.status}}</td>
+          <td class="p-4 text-gray-700">{{notice.created_by}}</td>
           <td class="p-4 text-gray-700">{{notice.publishDate | date}}</td>
           <td class="p-4">
             <div class="flex flex-wrap gap-2">
               <a *ngFor="let doc of notice.documents" 
-                 [href]="doc.url" 
+                 [href]="'https://gipdgkwmxmmykyaliwhr.supabase.co/storage/v1/object/public/noticebucket/public/'+notice.class_id+'/' + doc.name" 
                  target="_blank" 
                  class="text-blue-600 hover:text-blue-800">
                 {{doc.name}}
@@ -49,7 +52,7 @@
             </div>
           </td>
           <td class="p-4">
-            <button *ngIf="notice.status === 'Draft'"
+            <button *ngIf="notice.status === 'DRAFT'"
                     (click)="publishNotice(notice)"
                     class="bg-blue-600 text-white px-4 py-2 rounded-lg mr-2 hover:bg-blue-700 transition duration-300">
               Publish
@@ -86,25 +89,48 @@
           </div>
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+
             <div>
-              <label class="block mb-2 text-sm font-medium text-gray-600">Notice/Event</label>
-              <select [(ngModel)]="newNotice.category" name="category"
+              <label class="block mb-2 text-sm font-medium text-gray-600">Class</label>
+              <select [(ngModel)]="newNotice.class_id" name="class_id"
                       class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:border-blue-600 focus:ring-2 focus:ring-blue-100 outline-none">
-                <option *ngFor="let category of categories" [value]="category">
-                  {{category}}
+                <option value="">All Classes</option>
+                <option *ngFor="let class of departmentClasses" [value]="class.id">
+                  {{class.name}} ({{class.department.name}})
                 </option>
               </select>
             </div>
-
-
           </div>
 
           <div class="mb-6">
             <label class="block mb-2 text-sm font-medium text-gray-600">Documents</label>
-            <input type="file" 
-                   multiple 
-                   (change)="handleFileUpload($event)"
-                   class="w-full p-4 border-2 border-dashed border-gray-200 rounded-lg hover:border-blue-600 transition duration-300 cursor-pointer">
+            <div class="flex gap-2 items-center">
+              <div class="flex-1">
+                <input type="file" 
+                       #fileInput
+                       multiple 
+                       class="hidden"
+                       (change)="handleFileUpload($event)">
+                <div 
+                  (click)="fileInput.click()"
+                  class="w-full p-4 border-2 border-dashed border-gray-200 rounded-lg hover:border-blue-600 transition duration-300 cursor-pointer flex items-center justify-center">
+                  <span class="text-gray-600">Click to choose files or drag and drop here</span>
+                </div>
+              </div>
+              <button type="button" 
+                      [disabled]="isUploading"
+                      (click)="fileInput.click()"
+                      class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-300 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                <svg *ngIf="!isUploading" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                </svg>
+                <svg *ngIf="isUploading" class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                {{ isUploading ? 'Uploading...' : 'Upload' }}
+              </button>
+            </div>
             
             <div class="flex flex-wrap gap-2 mt-4">
               <div *ngFor="let doc of newNotice.documents" 
