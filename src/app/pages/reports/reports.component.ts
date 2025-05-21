@@ -13,12 +13,15 @@ import type {
   WeeklyAttendanceResponse,
   MonthlyAttendanceResponse,
   SubjectAttendanceResponse,
-  CustomAttendanceResponse
+  CustomAttendanceResponse,
+  ClassReportResponse
 } from '../../services/report.service';
 import { firstValueFrom } from 'rxjs';
 
 // Register Chart.js components
 Chart.register(...registerables);
+
+type ReportType = 'daily' | 'weekly' | 'monthly' | 'subject-wise' | 'custom' | 'class';
 
 @Component({
   selector: 'app-reports',
@@ -35,7 +38,7 @@ export class ReportsComponent implements OnInit, OnDestroy {
   classes: DepartmentClass[] = [];
 
   // Report type
-  reportType: 'daily' | 'weekly' | 'monthly' | 'subject-wise' | 'custom' = 'daily';
+  reportType: ReportType = 'daily';
   
   // Subject selection
   selectedSubject: string = '';
@@ -54,6 +57,7 @@ export class ReportsComponent implements OnInit, OnDestroy {
   monthlyReport: MonthlyAttendanceResponse | null = null;
   subjectReport: SubjectAttendanceResponse | null = null;
   customReport: CustomAttendanceResponse | null = null;
+  classReport: ClassReportResponse | null = null;
 
   // UI state
   isGenerating: boolean = false;
@@ -107,6 +111,7 @@ export class ReportsComponent implements OnInit, OnDestroy {
     this.monthlyReport = null;
     this.subjectReport = null;
     this.customReport = null;
+    this.classReport = null;
     this.destroyChart();
   }
 
@@ -138,7 +143,7 @@ export class ReportsComponent implements OnInit, OnDestroy {
           }));
           setTimeout(() => this.initializeChart(), 0);
           break;
-
+        
         case 'monthly':
           if (!this.selectedMonth) {
             alert('Please select a month');
@@ -175,6 +180,12 @@ export class ReportsComponent implements OnInit, OnDestroy {
             endDate: this.customEndDate,
             subjectId: this.selectedSubject
           }));
+          setTimeout(() => this.initializeChart(), 0);
+          break;
+
+        case 'class':
+          const response = await firstValueFrom(this.reportService.getClassReport(this.selectedClass));
+          this.classReport = response.data;
           setTimeout(() => this.initializeChart(), 0);
           break;
       }
@@ -362,6 +373,64 @@ export class ReportsComponent implements OnInit, OnDestroy {
         break;
       }
 
+      case 'class': {
+        if (!this.classReport) return;
+        // Single chart for subject-wise report
+        const subjectAttendanceData = {
+          labels: this.classReport.subject_statistics.map(s => s.subject_name),
+          datasets: [{
+            label: 'Subject-wise Attendance',
+            data: this.classReport.subject_statistics.map(s => s.attendance_percentage),
+            backgroundColor: 'rgba(59, 130, 246, 0.6)',
+            borderColor: 'rgb(59, 130, 246)',
+            borderWidth: 1
+          }]
+        };
+
+        this.chart = new Chart(ctx, {
+          type: 'bar',
+          data: subjectAttendanceData,
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: true, position: 'top' },
+              title: { 
+                display: true,
+                text: 'Subject-wise Attendance Performance',
+                font: { size: 16, weight: 'bold' },
+                padding: {
+                  top: 10,
+                  bottom: 30
+                }
+              }
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                title: {
+                  display: true,
+                  text: 'Attendance Percentage (%)',
+                  font: { size: 12, weight: 'bold' }
+                }
+              },
+              x: {
+                ticks: {
+                  maxRotation: 45,
+                  minRotation: 45
+                },
+                title: {
+                  display: true,
+                  text: 'Subjects',
+                  font: { size: 12, weight: 'bold' }
+                }
+              }
+            }
+          }
+        });
+        return;
+      }
+
       default:
         return;
     }
@@ -514,34 +583,77 @@ export class ReportsComponent implements OnInit, OnDestroy {
         break;
       }
 
+      case 'class': {
+        if (!this.classReport) return;
+        
+        // Class Info
+        title = `Class Report - ${this.classReport.class_info.class_name}`;
+        doc.setFontSize(16);
+        doc.text(title, 14, 15);
+
+        // Subject Statistics
+        doc.text('Subject Statistics', 14, 30);
+        autoTable(doc, {
+          head: [['Subject', 'Type', 'Attendance %', 'Avg Marks', 'Total Lectures']],
+          body: this.classReport.subject_statistics.map(s => [
+            s.subject_name,
+            s.subject_type,
+            `${s.attendance_percentage}%`,
+            s.average_marks,
+            s.total_lectures
+          ]),
+          startY: 35
+        });
+        // Student Statistics
+        doc.text('Student Statistics', 14, (doc as any).lastAutoTable.finalY + 20);
+        autoTable(doc, {
+          head: [['Roll No', 'Name', 'Overall Attendance %', 'Overall Grade']],
+          body: this.classReport.student_statistics.map(s => [
+            s.roll_number,
+            s.name,
+            `${s.attendance_percentage}%`
+          ]),
+          startY: (doc as any).lastAutoTable.finalY + 25
+        });
+        // Add subject chart
+        if (this.chart) {
+          const chartImage = this.chartCanvas.nativeElement.toDataURL('image/png');
+          doc.addPage();
+          doc.text('Subject-wise Attendance Distribution', 14, 15);
+          doc.addImage(chartImage, 'PNG', 10, 25, 190, 100);
+        }
+
+        break;
+      }
+
       default:
         return;
     }
 
-    // Add title
-    doc.setFontSize(16);
-    doc.text(title, 14, 15);
+    // For non-class reports, use existing logic
+    if (!['class'].includes(this.reportType)) {
+      doc.setFontSize(16);
+      doc.text(title, 14, 15);
 
-    // Add table
-    autoTable(doc, {
-      head: [headers],
-      body: data,
-      startY: 25,
-    });
+      autoTable(doc, {
+        head: [headers],
+        body: data,
+        startY: 25,
+      });
 
-    // Add chart if it exists
-    if (this.chart) {
-      const chartImage = this.chartCanvas.nativeElement.toDataURL('image/png');
-      const pageHeight = doc.internal.pageSize.height;
-      const finalY = (doc as any).lastAutoTable.finalY || 25;
-      
-      if (finalY + 100 > pageHeight) {
-        doc.addPage();
-        doc.text('Attendance Overview Chart', 14, 15);
-        doc.addImage(chartImage, 'PNG', 10, 25, 190, 100);
-      } else {
-        doc.text('Attendance Overview Chart', 14, finalY + 10);
-        doc.addImage(chartImage, 'PNG', 10, finalY + 20, 190, 100);
+      if (this.chart) {
+        const chartImage = this.chartCanvas.nativeElement.toDataURL('image/png');
+        const pageHeight = doc.internal.pageSize.height;
+        const finalY = (doc as any).lastAutoTable.finalY || 25;
+        
+        if (finalY + 100 > pageHeight) {
+          doc.addPage();
+          doc.text('Attendance Overview Chart', 14, 15);
+          doc.addImage(chartImage, 'PNG', 10, 25, 190, 100);
+        } else {
+          doc.text('Attendance Overview Chart', 14, finalY + 10);
+          doc.addImage(chartImage, 'PNG', 10, finalY + 20, 190, 100);
+        }
       }
     }
 
@@ -620,11 +732,36 @@ export class ReportsComponent implements OnInit, OnDestroy {
         break;
       }
 
+      case 'class': {
+        if (!this.classReport) return;
+
+        // Create multiple CSV files for different aspects of the report
+        
+        // 1. Subject Statistics
+        const subjectHeaders = ['Subject', 'Type', 'Attendance %', 'Average Marks', 'Total Lectures'];
+        const subjectData = this.classReport.subject_statistics.map(s => [
+          s.subject_name,
+          s.subject_type,
+          s.attendance_percentage,
+          s.average_marks,
+          s.total_lectures
+        ]);
+        this.downloadCSV(subjectHeaders, subjectData, 'subject-statistics');
+
+        return;
+      }
+
       default:
         return;
     }
 
-    // Configure Papa Parse options
+    // For non-class reports, use existing logic
+    if (!['class'].includes(this.reportType)) {
+      this.downloadCSV(headers, data);
+    }
+  }
+
+  private downloadCSV(headers: string[], data: any[][], suffix: string = ''): void {
     const csv = Papa.unparse({
       fields: headers,
       data: data
@@ -634,13 +771,16 @@ export class ReportsComponent implements OnInit, OnDestroy {
       newline: '\r\n'
     });
 
-    // Create and download the file
     const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
+    const timestamp = new Date().getTime();
+    const fileName = suffix ? 
+      `attendance-report-${this.reportType}-${suffix}-${timestamp}.csv` :
+      `attendance-report-${this.reportType}-${timestamp}.csv`;
     
     link.setAttribute('href', url);
-    link.setAttribute('download', `attendance-report-${this.reportType}-${new Date().getTime()}.csv`);
+    link.setAttribute('download', fileName);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();

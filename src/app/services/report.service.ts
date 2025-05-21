@@ -137,6 +137,38 @@ export interface MonthlyAttendanceResponse {
   monthlyStats: MonthlyAttendanceStudent[];
 }
 
+// Class report interfaces
+export interface SubjectStatistics {
+  subject_name: string;
+  subject_type: string;
+  attendance_percentage: number;
+  average_marks: number;
+  total_lectures: number;
+}
+
+export interface StudentStatistics {
+  roll_number: number;
+  name: string;
+  attendance_percentage: number;
+  average_marks: number;
+}
+
+export interface ClassReportResponse {
+  class_info: {
+    class_name: string;
+    department: string;
+    year: string;
+    total_students: number;
+  };
+  overall_statistics: {
+    overall_attendance: number;
+    total_subjects: number;
+    average_class_performance: number;
+  };
+  subject_statistics: SubjectStatistics[];
+  student_statistics: StudentStatistics[];
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -218,5 +250,9 @@ export class ReportService extends BaseService {
       .set('subject_id', params.subjectId || '');
 
     return this.http.get<MonthlyAttendanceResponse>(`${this.apiUrl}/attendance/monthly/`, { params: httpParams });
+  }
+
+  getClassReport(classId: string): Observable<{ message: string; data: ClassReportResponse }> {
+    return this.http.get<{ message: string; data: ClassReportResponse }>(`${this.apiUrl}/class-report/?class_id=${classId}`);
   }
 }

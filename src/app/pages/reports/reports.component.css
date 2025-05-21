@@ -4,15 +4,26 @@ canvas {
   height: 100% !important;
 }
 
-canvas#attendanceChart {
+canvas#attendanceChart,
+canvas#subjectChart,
+canvas#studentPieChart,
+canvas#studentChart,
+canvas#subjectTypeChart {
   display: block !important;
+  margin: 0 auto;
 }
 
 .chart-container {
   position: relative;
   width: 100%;
+  min-height: 400px;
+  max-height: 800px;
+  padding: 1rem;
+}
+
+.chart-container > div {
   height: 400px;
-  max-height: 400px;
+  margin-bottom: 2rem;
 }
 
 /* Ensure the chart container expands properly */
