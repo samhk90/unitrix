@@ -3,7 +3,6 @@ import { MainLayoutComponent } from './layouts/main-layout/main-layout.component
 import { DashboardComponent } from './pages/dashboard/dashboard.component';
 import { AttendanceComponent } from './pages/attendance/attendance.component';
 import { TimetableComponent } from './pages/timetable/timetable.component';
-import { HodTimetableComponent } from './pages/hod-timetable/hod-timetable.component';
 import { CourseplanComponent } from './pages/courseplan/courseplan.component';
 import { ReportsComponent } from './pages/reports/reports.component';
 import { CalendarComponent } from './pages/calendar/calendar.component';
@@ -27,7 +26,6 @@ export const routes: Routes = [
       { path: 'academics', children: [
         { path: 'attendance', component: AttendanceComponent },
         { path: 'timetable', component: TimetableComponent },
-        { path: 'hod-timetable', component: HodTimetableComponent },
         { path: 'courseplan', component: CourseplanComponent }
       ]},
       { path: 'reports', component: ReportsComponent },

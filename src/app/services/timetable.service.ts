@@ -99,14 +99,6 @@ export class TimetableService {
     }).pipe(catchError(this.handleError));
   }
 
-  getTimetableByDepartment(departmentId: number): Observable<TimetableResponse> {
-    const headers = this.getHeaders();
-    return this.http.get<TimetableResponse>(`${this.apiUrl}/timetable`, {
-      headers,
-      params: { department_id: departmentId.toString() }
-    }).pipe(catchError(this.handleError));
-  }
-
   private handleError(error: HttpErrorResponse) {
     console.error('API Error:', error);
     let errorMessage = 'An error occurred while fetching the timetable.';
