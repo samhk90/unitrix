@@ -1,7 +1,25 @@
 <div class="min-h-screen bg-gray-50 py-8">
     <div class="container max-w-full mx-auto px-4 sm:px-6 lg:px-8">
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 sm:p-8">
-            <h2 class="text-3xl font-bold text-gray-900 mb-8">Weekly Timetable</h2>
+            <div class="flex justify-between items-center mb-8">
+                <h2 class="text-3xl font-bold text-gray-900">{{viewMode === 'teacher' ? 'Teacher' : 'Class'}} Timetable</h2>
+                
+                <!-- View Switcher -->
+                <div class="flex items-center space-x-4">
+                    <button 
+                        (click)="switchView('teacher')"
+                        class="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200"
+                        [ngClass]="viewMode === 'teacher' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'">
+                        Teacher View
+                    </button>
+                    <button 
+                        (click)="switchView('class', '3')"
+                        class="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200"
+                        [ngClass]="viewMode === 'class' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'">
+                        Class View
+                    </button>
+                </div>
+            </div>
 
             <!-- Loading State -->
             <div *ngIf="isLoading" class="flex justify-center items-center py-8">
@@ -20,7 +38,7 @@
                         <tr>
                             <th class="border p-3 bg-gray-50 font-semibold">Time / Day</th>
                             <th *ngFor="let day of weekDays" class="border p-3 bg-gray-50 font-semibold">
-                                {{day}}
+                                {{day.charAt(0).toUpperCase() + day.slice(1)}}
                             </th>
                         </tr>
                     </thead>
@@ -45,7 +63,14 @@
                                             </span>
                                         </div>
                                         <div class="text-gray-600 text-s mt-1">
-                                            {{slot.class.name}}  <span *ngIf="slot.subject.type === 'Practical'">{{slot.batch_name}}</span>
+                                            <ng-container [ngSwitch]="viewMode">
+                                                <ng-container *ngSwitchCase="'teacher'">
+                                                    {{slot.class.name}} <span *ngIf="slot.subject.type === 'Practical'">{{slot.batch_name}}</span>
+                                                </ng-container>
+                                                <ng-container *ngSwitchCase="'class'">
+                                                    {{slot.teacher.name}} <span *ngIf="slot.subject.type === 'Practical'">{{slot.batch_name}}</span>
+                                                </ng-container>
+                                            </ng-container>
                                         </div>
                                     </div>
                                 </ng-container>

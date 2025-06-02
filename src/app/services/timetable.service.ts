@@ -5,36 +5,36 @@ import { catchError } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 import { AuthService } from './auth.service';
 
-interface Department {
+export interface Department {
   id: number;
   name: string;
 }
 
-interface Class {
+export interface Class {
   id: number;
   name: string;
   department: Department;
 }
 
-interface Slot {
+export interface Slot {
   id: number;
   start_time: string;
   end_time: string;
 }
 
-interface Subject {
+export interface Subject {
   id: number;
   name: string;
   type: string;
 }
 
-interface Teacher {
+export interface Teacher {
   id: string;
   name: string;
   department: Department;
 }
 
-interface TimetableEntry {
+export interface TimetableEntry {
   timetable_id: number;
   day: string;
   class: Class;
@@ -44,9 +44,26 @@ interface TimetableEntry {
   teacher: Teacher;
 }
 
-interface TimetableResponse {
+export interface ClassTimetableSlot {
+  start_time: string;
+  end_time: string;
+  subject: Subject;
+  teacher: Teacher;
+  batch_name?: string;
+}
+
+export interface ClassTimetableData {
+  class_info: Class;
+  timetable: {
+    [day: string]: {
+      [slotId: string]: ClassTimetableSlot;
+    };
+  };
+}
+
+export interface TimetableResponse {
   message: string;
-  data: TimetableEntry[];
+  data: TimetableEntry[] | ClassTimetableData;
 }
 
 @Injectable({
@@ -98,6 +115,17 @@ export class TimetableService {
       params: { class_id: classId }
     }).pipe(catchError(this.handleError));
   }
+
+  getClassTimetable(classId: string): Observable<TimetableResponse> {
+    console.log('Fetching timetable for class:', classId);
+    const headers = this.getHeaders();
+    
+    return this.http.get<TimetableResponse>(`${this.apiUrl}/class-timetable/`, {
+      headers,
+      params: { class_id: classId }
+    }).pipe(catchError(this.handleError));
+  }
+  
 
   private handleError(error: HttpErrorResponse) {
     console.error('API Error:', error);
