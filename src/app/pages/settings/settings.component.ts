@@ -2,7 +2,7 @@ import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AttendanceComponent } from '../../component/attendance/attendance.component';
-import { LeavesComponent } from '../../component/leaves/leaves.component';
+import { LeavesComponent } from '../leaves/leaves.component';
 
 interface NotificationSetting {
   id: string;
